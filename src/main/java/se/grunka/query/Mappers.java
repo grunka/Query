@@ -3,6 +3,7 @@ package se.grunka.query;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.ResultSet;
@@ -28,6 +29,10 @@ public class Mappers {
                 if (objectFields.containsKey(columnName)) {
                     throw new IllegalArgumentException("Duplicate column name found " + columnName);
                 }
+                int modifiers = field.getModifiers();
+                if (Modifier.isFinal(modifiers) && field.getType().isPrimitive()) {
+                    throw new IllegalArgumentException("Will not be able to set the field for @Column(\"" + columnName + "\") since it is a primitive type marked as final");
+                }
                 field.setAccessible(true);
                 objectFields.put(columnName, field);
             }
@@ -43,7 +48,7 @@ public class Mappers {
                     T instance = constructor.newInstance();
                     for (Map.Entry<String, Field> entry : objectFields.entrySet()) {
                         Field field = entry.getValue();
-                        field.set(instance, getValue(resultSet, entry.getKey(), field.getType()));
+                        setValue(resultSet, entry.getKey(), field, instance);
                     }
                     return instance;
                 } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
@@ -53,49 +58,37 @@ public class Mappers {
         };
     }
 
-    private static Object getValue(ResultSet resultSet, String columnName, Class<?> targetType) throws SQLException {
-        //TODO one big unit test :)
-        //TODO order in most used order? Does it matter?
+    private static <T> void setValue(ResultSet resultSet, String columnName, Field field, T instance) throws SQLException, IllegalAccessException {
+        Class<?> targetType = field.getType();
         if (targetType == String.class) {
-            return resultSet.getString(columnName);
-        }
-        if (targetType == Integer.class || targetType == int.class) {
-            return resultSet.getInt(columnName);
-        }
-        if (targetType == Double.class || targetType == double.class) {
-            return resultSet.getDouble(columnName);
-        }
-        if (targetType == Long.class || targetType == long.class) {
-            return resultSet.getLong(columnName);
-        }
-        if (targetType == Short.class || targetType == short.class) {
-            return resultSet.getShort(columnName);
-        }
-        if (targetType == Boolean.class || targetType == boolean.class) {
-            return resultSet.getBoolean(columnName);
-        }
-        if (targetType == Float.class || targetType == float.class) {
-            return resultSet.getFloat(columnName);
-        }
-        if (targetType == BigDecimal.class) {
-            return resultSet.getBigDecimal(columnName);
-        }
-        if (targetType == URL.class) {
-            return resultSet.getURL(columnName);
-        }
-        if (targetType == Byte.class || targetType == byte.class) {
-            return resultSet.getByte(columnName);
-        }
-        if (targetType == byte[].class) {
-            return resultSet.getBytes(columnName);
-        }
-        if (targetType == java.sql.Date.class) {
-            return resultSet.getDate(columnName);
-        }
-        if (targetType == Date.class) {
+            field.set(instance, resultSet.getString(columnName));
+        } else if (targetType == Integer.class || targetType == int.class) {
+            field.set(instance, resultSet.getInt(columnName));
+        } else if (targetType == Double.class || targetType == double.class) {
+            field.set(instance, resultSet.getDouble(columnName));
+        } else if (targetType == Long.class || targetType == long.class) {
+            field.set(instance, resultSet.getLong(columnName));
+        } else if (targetType == Short.class || targetType == short.class) {
+            field.set(instance, resultSet.getShort(columnName));
+        } else if (targetType == Boolean.class || targetType == boolean.class) {
+            field.set(instance, resultSet.getBoolean(columnName));
+        } else if (targetType == Float.class || targetType == float.class) {
+            field.set(instance, resultSet.getFloat(columnName));
+        } else if (targetType == BigDecimal.class) {
+            field.set(instance, resultSet.getBigDecimal(columnName));
+        } else if (targetType == URL.class) {
+            field.set(instance, resultSet.getURL(columnName));
+        } else if (targetType == Byte.class || targetType == byte.class) {
+            field.set(instance, resultSet.getByte(columnName));
+        } else if (targetType == byte[].class) {
+            field.set(instance, resultSet.getBytes(columnName));
+        } else if (targetType == java.sql.Date.class) {
+            field.set(instance, resultSet.getDate(columnName));
+        } else if (targetType == Date.class) {
             //TODO check that this is correct...
-            return new Date(resultSet.getTimestamp(columnName).getTime());
+            field.set(instance, new Date(resultSet.getTimestamp(columnName).getTime()));
+        } else {
+            field.set(instance, resultSet.getObject(columnName));
         }
-        return resultSet.getObject(columnName);
     }
 }

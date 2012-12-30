@@ -19,7 +19,6 @@ public class Parameters {
             @Override
             public void set(PreparedStatement statement) throws SQLException {
                 for (int i = 0; i < objects.length; i++) {
-                    //TODO test
                     Object value = objects[i];
                     if (value instanceof String) {
                         statement.setString(i + 1, (String) value);
